@@ -84,10 +84,6 @@ canvas{max-width:100%;margin-top:20px}
   line-height:1.6;
 }
 
-@media(max-width:768px){
-  table thead{display:none}
-}
-
 @media print{
   button,.grid{display:none}
   body{background:#fff}
@@ -152,6 +148,8 @@ let chart;
 function calculate(){
   const age = +ageEl.value;
   const rest = +restEl.value || 0;
+  const goal = goalEl.value;
+
   if(!age){ alert("Please enter age"); return; }
 
   const maxHR = 220 - age;
@@ -176,11 +174,30 @@ function calculate(){
   moderate.textContent = `${modLow}–${modHigh}`;
   vigorous.textContent = `${vigLow}–${vigHigh}`;
 
+  let goalText = "";
+  if(goal==="fat") goalText = "👉 Focus mainly on the <b>Moderate (green)</b> zone for fat metabolism.";
+  if(goal==="cardio") goalText = "👉 Spend more time in the <b>Vigorous (yellow)</b> zone to improve endurance.";
+  if(goal==="athlete") goalText = "👉 Short, controlled sessions in the <b>Peak (red)</b> zone only under supervision.";
+  if(goal==="general") goalText = "👉 Combine Moderate and short Vigorous sessions for overall health.";
+
+  let restWarning = rest >= 100
+    ? `<br><br><b>⚠️ Safety note:</b> A resting heart rate above 100 bpm may indicate stress, illness, or overtraining. Consider medical advice.`
+    : "";
+
   insight.innerHTML = `
   <b>How to use your target heart rate:</b><br>
   • Moderate zone improves health and fat metabolism<br>
   • Vigorous zone boosts cardiovascular fitness<br>
   • Resting HR applied using Karvonen method when provided<br><br>
+
+  <b>Weekly training guidance (AHA):</b><br>
+  • Moderate intensity: <b>150–300 minutes/week</b><br>
+  • Vigorous intensity: <b>75–150 minutes/week</b><br><br>
+
+  ${goalText}
+  ${restWarning}
+
+  <br><br>
   <b>Medical disclaimer:</b>
   Estimates only. Individuals with heart disease, pregnancy,
   or medical conditions should consult a healthcare professional.
@@ -208,11 +225,7 @@ function drawChart(m1,m2,v1,v2){
     options:{
       plugins:{
         legend:{position:"bottom"},
-        tooltip:{
-          callbacks:{
-            label:(ctx)=>ctx.label
-          }
-        }
+        tooltip:{callbacks:{label:(ctx)=>ctx.label}}
       }
     }
   });
@@ -220,6 +233,7 @@ function drawChart(m1,m2,v1,v2){
 
 const ageEl = document.getElementById("age");
 const restEl = document.getElementById("rest");
+const goalEl = document.getElementById("goal");
 </script>
 
 </body>
