@@ -1,0 +1,226 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+<meta charset="UTF-8">
+<title>Target Heart Rate Calculator – Medical Standard</title>
+<meta name="viewport" content="width=device-width, initial-scale=1">
+
+<script src="https://cdn.jsdelivr.net/npm/chart.js"></script>
+
+<style>
+:root{
+  --primary:#2563eb;
+  --bg:#f4f7fb;
+  --card:#ffffff;
+  --radius:16px;
+  --text:#1f2937;
+  --muted:#6b7280;
+}
+*{box-sizing:border-box}
+body{
+  margin:0;
+  font-family:Inter,system-ui,Arial;
+  background:var(--bg);
+  color:var(--text);
+}
+.container{max-width:1100px;margin:auto;padding:20px}
+.card{
+  background:var(--card);
+  border-radius:var(--radius);
+  padding:28px;
+  box-shadow:0 14px 36px rgba(0,0,0,.08);
+  margin-bottom:20px;
+}
+h1,h2{margin:0 0 10px;color:var(--primary)}
+small{color:var(--muted)}
+
+.grid{
+  display:grid;
+  grid-template-columns:repeat(auto-fit,minmax(240px,1fr));
+  gap:16px;
+}
+.field{display:flex;flex-direction:column}
+.field label{font-size:14px;margin-bottom:6px}
+.field input,.field select{
+  height:52px;
+  padding:12px 14px;
+  font-size:16px;
+  border-radius:10px;
+  border:1px solid #ddd;
+}
+
+button{
+  width:100%;
+  padding:18px;
+  background:var(--primary);
+  color:#fff;
+  border:none;
+  border-radius:14px;
+  font-size:18px;
+  cursor:pointer;
+}
+.print-btn{background:#111;margin-top:10px}
+
+.results{
+  display:grid;
+  grid-template-columns:repeat(auto-fit,minmax(200px,1fr));
+  gap:16px;
+}
+.box{
+  background:linear-gradient(180deg,#f8fafc,#eef2ff);
+  padding:18px;
+  border-radius:14px;
+  text-align:center;
+}
+.box b{font-size:22px}
+
+canvas{max-width:100%;margin-top:20px}
+
+.note{
+  background:#f1f5f9;
+  padding:16px;
+  border-radius:12px;
+  font-size:14px;
+  line-height:1.6;
+}
+
+@media(max-width:768px){
+  table thead{display:none}
+}
+
+@media print{
+  button,.grid{display:none}
+  body{background:#fff}
+  .card{box-shadow:none;border:1px solid #ddd}
+}
+</style>
+</head>
+
+<body>
+<div class="container">
+
+<!-- INPUT -->
+<div class="card">
+<h1>Target Heart Rate Calculator</h1>
+<small>Training heart rate zones · Medical standard (AHA / ACSM)</small>
+
+<div class="grid">
+  <div class="field">
+    <label>Age (years)</label>
+    <input id="age" type="number" min="10" max="100">
+  </div>
+
+  <div class="field">
+    <label>Resting Heart Rate (optional)</label>
+    <input id="rest" type="number" placeholder="e.g. 60 bpm">
+  </div>
+
+  <div class="field">
+    <label>Fitness Goal</label>
+    <select id="goal">
+      <option value="general">General fitness</option>
+      <option value="fat">Fat burning</option>
+      <option value="cardio">Cardio endurance</option>
+      <option value="athlete">Athletic training</option>
+    </select>
+  </div>
+</div>
+
+<br>
+<button onclick="calculate()">Calculate Target Heart Rate</button>
+<button class="print-btn" onclick="window.print()">🖨️ Print / Export PDF</button>
+</div>
+
+<!-- RESULTS -->
+<div class="card">
+<div class="results">
+  <div class="box">Max Heart Rate<br><b id="maxhr">—</b> bpm</div>
+  <div class="box">Moderate Zone<br><b id="moderate">—</b> bpm</div>
+  <div class="box">Vigorous Zone<br><b id="vigorous">—</b> bpm</div>
+</div>
+
+<canvas id="hrChart" height="240"></canvas>
+
+<div class="note" id="insight"></div>
+</div>
+
+</div>
+
+<script>
+let chart;
+
+function calculate(){
+  const age = +ageEl.value;
+  const rest = +restEl.value || 0;
+  if(!age){ alert("Please enter age"); return; }
+
+  const maxHR = 220 - age;
+  const useHRR = rest > 0 && rest < maxHR;
+
+  let modLow, modHigh, vigLow, vigHigh;
+
+  if(useHRR){
+    const hrr = maxHR - rest;
+    modLow = Math.round(hrr * 0.50 + rest);
+    modHigh = Math.round(hrr * 0.70 + rest);
+    vigLow = Math.round(hrr * 0.70 + rest);
+    vigHigh = Math.round(hrr * 0.85 + rest);
+  }else{
+    modLow = Math.round(maxHR * 0.50);
+    modHigh = Math.round(maxHR * 0.70);
+    vigLow = Math.round(maxHR * 0.70);
+    vigHigh = Math.round(maxHR * 0.85);
+  }
+
+  maxhr.textContent = maxHR;
+  moderate.textContent = `${modLow}–${modHigh}`;
+  vigorous.textContent = `${vigLow}–${vigHigh}`;
+
+  insight.innerHTML = `
+  <b>How to use your target heart rate:</b><br>
+  • Moderate zone improves health and fat metabolism<br>
+  • Vigorous zone boosts cardiovascular fitness<br>
+  • Resting HR applied using Karvonen method when provided<br><br>
+  <b>Medical disclaimer:</b>
+  Estimates only. Individuals with heart disease, pregnancy,
+  or medical conditions should consult a healthcare professional.
+  `;
+
+  drawChart(modLow, modHigh, vigLow, vigHigh);
+}
+
+function drawChart(m1,m2,v1,v2){
+  if(chart) chart.destroy();
+  chart = new Chart(hrChart,{
+    type:"pie",
+    data:{
+      labels:[
+        `Warm-up (<${m1})`,
+        `Moderate (${m1}–${m2})`,
+        `Vigorous (${v1}–${v2})`,
+        `Peak (>${v2})`
+      ],
+      datasets:[{
+        data:[m1, m2-m1, v2-v1, 220],
+        backgroundColor:["#93c5fd","#34d399","#fbbf24","#f87171"]
+      }]
+    },
+    options:{
+      plugins:{
+        legend:{position:"bottom"},
+        tooltip:{
+          callbacks:{
+            label:(ctx)=>ctx.label
+          }
+        }
+      }
+    }
+  });
+}
+
+const ageEl = document.getElementById("age");
+const restEl = document.getElementById("rest");
+</script>
+
+</body>
+</html>
